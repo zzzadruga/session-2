@@ -92,11 +92,12 @@ public class OutputFormatterTest {
 
                 String actual = actualOutput.nextLine();
 
+                actual = actual.replace((char)160, (char)32);
+                expected = expected.replace((char)160, (char)32);
+
                 assertEquals(expected, actual);
             }
-
         }
-
     }
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
