@@ -23,6 +23,7 @@ import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 
 /**
@@ -33,20 +34,25 @@ public class OutputFormatter {
     private DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols();
     private DecimalFormat moneyFormat = createFormat(new DecimalFormat("###,##0.00"), formatSymbols);
     private DecimalFormat numberFormat = createFormat(new DecimalFormat(), formatSymbols);
-    private boolean[] isString;
 
     public OutputFormatter(PrintStream out) {
         this.out = out;
     }
 
     public void output(String[] names, Object[][] data) {
-        Integer[] maxLength = getMaxLength(names, data);
+        Boolean[] isString = new Boolean[names.length];
+        Arrays.fill(isString, false);
+        String[][] transformData = new String[data.length][];
+        for (int i = 0; i < data.length; i++) {
+            transformData[i] = new String[data[i].length];
+        }
+        Integer[] maxLength = getMaxLength(names, data, isString, transformData);
         String horizontalTableBorder = createHorizontalTableBorder(maxLength);
         this.out.println(horizontalTableBorder);
-        printLine(maxLength, names, true);
+        printLine(maxLength, names, isString,true);
         this.out.println(horizontalTableBorder);
-        for (Object[] lines : data) {
-            printLine(maxLength, lines, false);
+        for (String[] lines : transformData) {
+            printLine(maxLength, lines, isString, false);
             this.out.println(horizontalTableBorder);
         }
     }
@@ -59,28 +65,28 @@ public class OutputFormatter {
         return line.toString();
     }
 
-    private void printLine(Integer[] maxLength, Object[] objects, boolean names) {
+    private void printLine(Integer[] maxLength, String[] objects, Boolean[] isString, boolean names) {
         String obj;
         for (int i = 0; i < objects.length; i++) {
             this.out.printf(
                     (i == 0 ? "|" : "") + "%" + ((isString[i] && !names) ? "-" : "") +
                             maxLength[i] + "s|" + (i == objects.length - 1 ? "%n" : ""),
-                    names ? (obj = objects[i].toString())
+                    names ? (obj = objects[i])
                             .concat(StringUtils.repeat(' ', (maxLength[i] - obj.length()) / 2 + (maxLength[i] - obj.length()) % 2))
-                          : getValue(objects[i]));
+                          : objects[i]);
         }
     }
 
-    private Integer[] getMaxLength(String[] names, Object[][] data) {
+    private Integer[] getMaxLength(String[] names, Object[][] data, Boolean[] isString, String[][] transformData) {
         Integer[] maxLength = new Integer[names.length];
-        isString = new boolean[names.length];
         for (int i = 0; i < names.length; i++) {
             maxLength[i] = names[i] == null ? 1 : names[i].length();
         }
         for (int i = 0; i < data.length; i++) {
             int length;
             for (int j = 0; j < data[i].length; j++) {
-                length = data[i][j] == null ? 1 : getValue(data[i][j]).length();
+                transformData[i][j] = getValue(data[i][j]);
+                length = data[i][j] == null ? 1 : transformData[i][j].length();
                 if (!isString[j]) {
                     isString[j] = data[i][j] instanceof String;
                 }
