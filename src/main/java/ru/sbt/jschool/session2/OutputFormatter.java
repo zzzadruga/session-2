@@ -34,22 +34,25 @@ public class OutputFormatter {
     private DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols();
     private DecimalFormat moneyFormat = createFormat(new DecimalFormat("###,##0.00"), formatSymbols);
     private DecimalFormat numberFormat = createFormat(new DecimalFormat(), formatSymbols);
-    private String[] types;
 
     public OutputFormatter(PrintStream out) {
         this.out = out;
     }
 
     public void output(String[] names, Object[][] data) {
-        types = new String[names.length];
+        String[][] transformData = new String[data.length][];
+        for (int i = 0; i < data.length; i++) {
+            transformData[i] = new String[data[i].length];
+        }
+        String[] types = new String[names.length];
         Arrays.fill(types, "");
-        Integer[] maxLength = getMaxLength(names, data);
+        Integer[] maxLength = getMaxLength(names, data, transformData, types);
         String horizontalTableBorder = createHorizontalTableBorder(maxLength);
         this.out.println(horizontalTableBorder);
-        printLine(maxLength, names, true);
+        printLine(maxLength, names, types, true);
         this.out.println(horizontalTableBorder);
-        for (Object[] lines : data) {
-            printLine(maxLength, lines, false);
+        for (String[] lines : transformData) {
+            printLine(maxLength, lines, types, false);
             this.out.println(horizontalTableBorder);
         }
     }
@@ -62,19 +65,19 @@ public class OutputFormatter {
         return line.toString();
     }
 
-    private void printLine(Integer[] maxLength, Object[] objects, boolean names) {
+    private void printLine(Integer[] maxLength, String[] objects, String[] types, boolean names) {
         String obj;
         for (int i = 0; i < objects.length; i++) {
             this.out.printf(
                     (i == 0 ? "|" : "") + "%" + ((types[i].equals("String") && !names) ? "-" : "") +
                             maxLength[i] + "s|" + (i == objects.length - 1 ? "%n" : ""),
-                    names ? (obj = objects[i].toString())
+                    names ? (obj = objects[i])
                             .concat(StringUtils.repeat(' ', (maxLength[i] - obj.length()) / 2 + (maxLength[i] - obj.length()) % 2))
-                          : getValue(i, objects[i]));
+                          : objects[i]);
         }
     }
 
-    private Integer[] getMaxLength(String[] names, Object[][] data) {
+    private Integer[] getMaxLength(String[] names, Object[][] data, String[][] transformData, String[] types) {
         Integer[] maxLength = new Integer[names.length];
         for (int i = 0; i < names.length; i++) {
             maxLength[i] = names[i] == null ? 1 : names[i].length();
@@ -85,7 +88,8 @@ public class OutputFormatter {
                 if (types[j].isEmpty()) {
                     types[j] = getTypeName(data[i][j]);
                 }
-                length = data[i][j] == null ? 1 : getValue(j, data[i][j]).length();
+                transformData[i][j] = getValue(data[i][j], types[j]);
+                length = data[i][j] == null ? 1 : transformData[i][j].length();
                 if (length > maxLength[j]) {
                     maxLength[j] = length;
                 }
@@ -120,11 +124,11 @@ public class OutputFormatter {
         return format;
     }
 
-    private String getValue(int i, Object object) {
+    private String getValue(Object object, String type) {
         if (object == null) {
             return "-";
         }
-        switch(types[i]){
+        switch(type){
             case "Date" : return dateFormat.format(object);
             case "Money" : return moneyFormat.format(object);
             case "Number" : return numberFormat.format(object);
